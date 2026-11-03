@@ -1,0 +1,20 @@
+# .NET generated files
+**/bin/
+**/obj/
+
+# SQLite database
+**/*.db
+**/*.db-shm
+**/*.db-wal
+
+# React
+**/node_modules/
+**/dist/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store

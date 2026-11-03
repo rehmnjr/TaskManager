@@ -1,24 +1,3 @@
-TaskManager/
-│
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── TaskCard.jsx
-│   │   │   ├── TaskList.jsx
-│   │   │   └── TaskForm.jsx
-│   │   │
-│   │   ├── pages/
-│   │   │   └── Dashboard.jsx
-│   │   │
-│   │   ├── App.jsx
-│   │   └── App.css
-│   │
-│   └── package.json
-│
-└── README.md
-
-
-
 # Task Manager
 
 A simple and responsive Task Management application built using React and JavaScript. The application allows users to create, manage, update, delete, and filter their daily tasks through an intuitive dashboard.

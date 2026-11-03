@@ -1,196 +1,235 @@
+import { useCallback, useEffect, useState } from "react";
 
-import { useState } from "react";
 import TaskList from "../components/TaskList";
 import TaskForm from "../components/TaskForm";
 
+import {
+  getTasks,
+  createTask,
+  updateTask,
+  updateTaskStatus,
+  deleteTask,
+} from "../services/taskService";
+
 function Dashboard() {
+  const [tasks, setTasks] = useState([]);
 
-  // 1. Tasks state
-  const [tasks, setTasks] = useState([
-    {
-      id: 1,
-      title: "Learn ASP.NET Core",
-      description: "Understand Web API and Entity Framework",
-      status: "IN_PROGRESS",
-      priority: "HIGH",
-    },
-    {
-      id: 2,
-      title: "Build React Dashboard",
-      description: "Create task management interface",
-      status: "TODO",
-      priority: "MEDIUM",
-    },
-    {
-      id: 3,
-      title: "Practice SQL",
-      description: "Learn joins and relationships",
-      status: "DONE",
-      priority: "LOW",
-    },
-  ]);
-
-  // 2. Other state variables
   const [showForm, setShowForm] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [priorityFilter, setPriorityFilter] = useState("ALL");
+  const [editingTask, setEditingTask] = useState(null);
 
-  // 3. Filter tasks
-  const filteredTasks = tasks.filter((task) => {
-    const matchesStatus =
-      statusFilter === "ALL" || task.status === statusFilter;
+  const [statusFilter, setStatusFilter] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState("");
 
-    const matchesPriority =
-      priorityFilter === "ALL" || task.priority === priorityFilter;
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-    return matchesStatus && matchesPriority;
-  });
+  // Fetch tasks from backend
+  const fetchTasks = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
 
-  // 4. Create task
-  const handleCreateTask = (newTask) => {
-    const task = {
-      id: Date.now(),
-      ...newTask,
-      createdDate: new Date().toISOString(),
-    };
+      const response = await getTasks(statusFilter, priorityFilter);
 
-    setTasks((previousTasks) => [task, ...previousTasks]);
+      setTasks(response.data);
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          "Failed to fetch tasks. Please try again.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter, priorityFilter]);
+
+  // Fetch whenever filters change
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
+
+  // Create or update task
+  const handleSubmitTask = async (taskData) => {
+    try {
+      setError("");
+      setSuccess("");
+
+      if (editingTask) {
+        await updateTask(editingTask.id, taskData);
+        setSuccess("Task updated successfully.");
+      } else {
+        await createTask(taskData);
+        setSuccess("Task created successfully.");
+      }
+
+      setShowForm(false);
+      setEditingTask(null);
+
+      await fetchTasks();
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to save task.");
+    }
+  };
+
+  // Open edit form
+  const handleEditTask = (task) => {
+    setEditingTask(task);
+    setShowForm(true);
+    setError("");
+    setSuccess("");
+  };
+
+  // Change task status
+  const handleStatusChange = async (id, status) => {
+    try {
+      setError("");
+      setSuccess("");
+
+      await updateTaskStatus(id, status);
+
+      setSuccess("Task status updated successfully.");
+
+      await fetchTasks();
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to update task status.");
+    }
+  };
+
+  // Delete task
+  const handleDeleteTask = async (id) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this task?",
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setError("");
+      setSuccess("");
+
+      await deleteTask(id);
+
+      setSuccess("Task deleted successfully.");
+
+      await fetchTasks();
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to delete task.");
+    }
+  };
+
+  // Open create form
+  const handleAddTask = () => {
+    setEditingTask(null);
+    setShowForm(true);
+    setError("");
+    setSuccess("");
+  };
+
+  // Close form
+  const handleCancelForm = () => {
     setShowForm(false);
+    setEditingTask(null);
   };
 
-  // 5. Update task status
-  const handleStatusChange = (taskId, newStatus) => {
-    setTasks((previousTasks) =>
-      previousTasks.map((task) =>
-        task.id === taskId
-          ? { ...task, status: newStatus }
-          : task
-      )
-    );
-  };
+  const totalTasks = tasks.length;
 
-  // 6. Delete task
-  const handleDeleteTask = (taskId) => {
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete this task?"
-    );
+  const completedTasks = tasks.filter((task) => task.status === "DONE").length;
 
-    if (!confirmDelete) return;
-
-    setTasks((previousTasks) =>
-      previousTasks.filter((task) => task.id !== taskId)
-    );
-  };
+  const inProgressTasks = tasks.filter(
+    (task) => task.status === "IN_PROGRESS",
+  ).length;
 
   return (
     <div className="dashboard">
-
-      {/* Header */}
-      <header className="dashboard-header">
+      {/* Dashboard Header */}
+      <div className="dashboard-header">
         <div>
           <h1>Task Manager</h1>
           <p>Manage your daily tasks efficiently.</p>
         </div>
 
-        <button
-          className="create-button"
-          onClick={() => setShowForm(true)}
-        >
-          + Create Task
-        </button>
-      </header>
+        <button onClick={handleAddTask}>+ Add Task</button>
+      </div>
 
-      {/* Create Task Form */}
-      {showForm && (
-        <TaskForm
-          onCreateTask={handleCreateTask}
-          onCancel={() => setShowForm(false)}
-        />
-      )}
-
-      {/* Summary */}
-      <section className="summary">
-
+      {/* Summary Cards */}
+      <div className="summary-cards">
         <div className="summary-card">
           <h3>Total Tasks</h3>
-          <h2>{tasks.length}</h2>
+          <p>{totalTasks}</p>
         </div>
 
         <div className="summary-card">
           <h3>In Progress</h3>
-          <h2>
-            {tasks.filter(
-              (task) => task.status === "IN_PROGRESS"
-            ).length}
-          </h2>
+          <p>{inProgressTasks}</p>
         </div>
 
         <div className="summary-card">
           <h3>Completed</h3>
-          <h2>
-            {tasks.filter(
-              (task) => task.status === "DONE"
-            ).length}
-          </h2>
+          <p>{completedTasks}</p>
         </div>
-
-      </section>
-
-      {/* Filters */}
-      <div className="task-filters">
-
-        <div className="form-group">
-          <label>Filter by Status</label>
-
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="TODO">TODO</option>
-            <option value="IN_PROGRESS">IN PROGRESS</option>
-            <option value="DONE">DONE</option>
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label>Filter by Priority</label>
-
-          <select
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value)}
-          >
-            <option value="ALL">All Priorities</option>
-            <option value="LOW">LOW</option>
-            <option value="MEDIUM">MEDIUM</option>
-            <option value="HIGH">HIGH</option>
-          </select>
-        </div>
-
-        <button
-          className="reset-filter-button"
-          onClick={() => {
-            setStatusFilter("ALL");
-            setPriorityFilter("ALL");
-          }}
-        >
-          Reset Filters
-        </button>
-
       </div>
 
-      {/* Task List */}
-      <section className="tasks-section">
-        <h2>My Tasks</h2>
+      {/* Filters */}
+      {/* Filters */}
+      <div className="filters">
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="">All Statuses</option>
+          <option value="TODO">TODO</option>
+          <option value="IN_PROGRESS">IN PROGRESS</option>
+          <option value="DONE">DONE</option>
+        </select>
 
+        <select
+          value={priorityFilter}
+          onChange={(e) => setPriorityFilter(e.target.value)}
+        >
+          <option value="">All Priorities</option>
+          <option value="LOW">LOW</option>
+          <option value="MEDIUM">MEDIUM</option>
+          <option value="HIGH">HIGH</option>
+        </select>
+
+        <button
+          className="reset-button"
+          onClick={() => {
+            setStatusFilter("");
+            setPriorityFilter("");
+          }}
+          disabled={!statusFilter && !priorityFilter}
+        >
+          <span>↺</span> Reset Filters
+        </button>
+      </div>
+
+      {/* Feedback Messages */}
+      {error && <div className="error-message">{error}</div>}
+
+      {success && <div className="success-message">{success}</div>}
+
+      {/* Create/Edit Form */}
+      {showForm && (
+        <TaskForm
+          key={editingTask?.id ?? "new-task"}
+          initialTask={editingTask}
+          onSubmitTask={handleSubmitTask}
+          onCancel={handleCancelForm}
+        />
+      )}
+
+      {/* Task List */}
+      {loading ? (
+        <p className="loading-message">Loading tasks...</p>
+      ) : (
         <TaskList
-          tasks={filteredTasks}
+          tasks={tasks}
           onStatusChange={handleStatusChange}
           onDeleteTask={handleDeleteTask}
+          onEditTask={handleEditTask}
         />
-
-      </section>
-
+      )}
     </div>
   );
 }

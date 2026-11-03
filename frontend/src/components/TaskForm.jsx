@@ -1,12 +1,13 @@
-
 import { useState } from "react";
 
-function TaskForm({ onCreateTask, onCancel }) {
+function TaskForm({ onSubmitTask, onCancel, initialTask }) {
+  const isEditing = Boolean(initialTask);
+
   const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    status: "TODO",
-    priority: "MEDIUM"
+    title: initialTask?.title || "",
+    description: initialTask?.description || "",
+    status: initialTask?.status || "TODO",
+    priority: initialTask?.priority || "MEDIUM",
   });
 
   const [error, setError] = useState("");
@@ -16,7 +17,7 @@ function TaskForm({ onCreateTask, onCancel }) {
 
     setFormData((previous) => ({
       ...previous,
-      [name]: value
+      [name]: value,
     }));
 
     if (name === "title") {
@@ -32,19 +33,22 @@ function TaskForm({ onCreateTask, onCancel }) {
       return;
     }
 
-    onCreateTask({
+    onSubmitTask({
       ...formData,
-      title: formData.title.trim()
+      title: formData.title.trim(),
     });
   };
 
   return (
     <div className="task-form-container">
-
       <div className="form-header">
         <div>
-          <h2>Create New Task</h2>
-          <p>Add a new task to your task manager.</p>
+          <h2>{isEditing ? "Edit Task" : "Create New Task"}</h2>
+          <p>
+            {isEditing
+              ? "Update your task details."
+              : "Add a new task to your task manager."}
+          </p>
         </div>
 
         <button
@@ -58,7 +62,6 @@ function TaskForm({ onCreateTask, onCancel }) {
       </div>
 
       <form className="task-form" onSubmit={handleSubmit}>
-
         <div className="form-group full-width">
           <label htmlFor="title">Task Title *</label>
 
@@ -69,11 +72,13 @@ function TaskForm({ onCreateTask, onCancel }) {
             value={formData.title}
             onChange={handleChange}
             placeholder="e.g. Complete React project"
-            maxLength={200}
+            maxLength={100}
             required
           />
 
-          {error && <span className="form-error">{error}</span>}
+          {error && (
+            <span className="form-error">{error}</span>
+          )}
         </div>
 
         <div className="form-group full-width">
@@ -91,7 +96,6 @@ function TaskForm({ onCreateTask, onCancel }) {
         </div>
 
         <div className="form-row">
-
           <div className="form-group">
             <label htmlFor="status">Status</label>
 
@@ -121,21 +125,21 @@ function TaskForm({ onCreateTask, onCancel }) {
               <option value="HIGH">HIGH</option>
             </select>
           </div>
-
         </div>
 
         <div className="form-actions">
-
-          <button type="button" className="cancel-button" onClick={onCancel}>
+          <button
+            type="button"
+            className="cancel-button"
+            onClick={onCancel}
+          >
             Cancel
           </button>
 
           <button type="submit" className="save-button">
-            Create Task
+            {isEditing ? "Save Changes" : "Create Task"}
           </button>
-
         </div>
-
       </form>
     </div>
   );
